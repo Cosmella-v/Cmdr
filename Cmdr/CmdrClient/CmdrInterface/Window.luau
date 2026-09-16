@@ -15,8 +15,8 @@ const Player = Players.LocalPlayer
 
 -- Checks if a screen position lies outside a given GUI bounds
 const function isPositionOutsideGui(position: Vector3, gui: GuiObject): boolean
-	local absolutePosition = gui.AbsolutePosition
-	local absoluteSize = gui.AbsoluteSize
+	const absolutePosition = gui.AbsolutePosition
+	const absoluteSize = gui.AbsoluteSize
 	return position.X < absolutePosition.X
 		or position.X > absolutePosition.X + absoluteSize.X
 		or position.Y < absolutePosition.Y
@@ -24,7 +24,7 @@ const function isPositionOutsideGui(position: Vector3, gui: GuiObject): boolean
 end
 
 -- Constructs auto-completed text string from command argument definitions
-local function buildAutoCompleteText(command, lastArg, replace: string): string
+const function buildAutoCompleteText(command, lastArg, replace: string): string
 	local newText = command.Alias
 	for _, argument in command.Arguments do
 		local segments = argument.RawSegments

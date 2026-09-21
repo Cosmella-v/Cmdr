@@ -463,10 +463,34 @@ end
 	Registers all commands from within a container on both the server and client.
 	Module scripts which include `Server` in their name will not be sent to the client.
 ]=]
-function Registry:RegisterCommandsIn(container: Instance, filter: ((any) -> boolean)?, isDefault: boolean?)
+function Registry:RegisterCommandsIn(container: Instance, filter: ((any) -> boolean)?, isDefault: boolean?, forceLegacy : boolean?)
 	local skippedServerScripts = {}
 	local usedServerScripts = {}
-	for _, commandScript in pairs(container:GetChildren()) do
+	local containerChildren = container:GetChildren()
+	if not forceLegacy then
+		const Server = container:FindFirstChild("Server")
+		const Client = container:FindFirstChild("Client")
+		if not Client or not Client:IsA("ModuleScript") then
+			if Server and Server:IsA("ModuleScript") then
+				const indexServer = table.find(containerChildren, Server)
+				if indexServer then
+					table.remove(containerChildren, indexServer)
+				end
+				skippedServerScripts[Server] = true
+			end
+		else
+			const indexServer = table.find(containerChildren, Server)
+			if indexServer then
+				table.remove(containerChildren, indexServer)
+			end
+			const indexClient = table.find(containerChildren, Client)
+			if indexClient then
+				table.remove(containerChildren, indexClient)
+			end
+			self:RegisterCommand(Client, Server, filter, isDefault)
+		end
+	end
+	for _, commandScript in pairs(containerChildren) do
 		if commandScript:IsA("ModuleScript") then
 			if not commandScript.Name:find("Server") then
 				const serverCommandScript = container:FindFirstChild(`{commandScript.Name}Server`)

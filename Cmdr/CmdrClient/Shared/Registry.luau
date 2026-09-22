@@ -487,6 +487,7 @@ function Registry:RegisterCommandsIn(container: Instance, filter: ((any) -> bool
 			return nil, nil
 		end
 	end
+	assert(typeof(scriptFilter) == "function", "[Cmdr] The scriptFilter parameter must be a function or nil")
 	for _, commandScript in pairs(container:GetChildren()) do
 		if commandScript:IsA("ModuleScript") then
 			const clientCommandScript, serverCommandScript = scriptFilter(table.freeze{
@@ -499,7 +500,6 @@ function Registry:RegisterCommandsIn(container: Instance, filter: ((any) -> bool
 				self:RegisterCommand(clientCommandScript, serverCommandScript, filter, isDefault)
 			else
 				if serverCommandScript then
-					print("skipped")
 					skippedServerScripts[serverCommandScript] = true
 				end
 			end

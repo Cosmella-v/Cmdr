@@ -73,6 +73,13 @@ const NIL_PROPERTIES = { "_autoExecFlushConnection" }
 
 --[=[
 	@within Registry
+	@interface ScriptFilterDefinition
+	.Script ModuleScript -- The current script being filtered
+	.Container Instance -- The Parent of the current script being filtered
+]=]
+
+--[=[
+	@within Registry
 	@interface TypeDefinition
 	.Prefixes string? -- String containing [prefixed union types](/docs/commands#prefixed-union-types) for this type. This property should omit the inital type, so the string should begin with a prefix character, e.g. `Prefixes = "# integer ! boolean"`
 	.DisplayName string? -- Overrides the user-facing name of this type in the autocomplete menu. Otherwise, the registered name of the type will be used.
@@ -459,51 +466,45 @@ end
 	@within Registry
 
 	@param filter ((CommandDefinition) -> boolean)? -- If present, will be passed a command definition which will then only be registered if the function returns `true`.
+	
+	@param scriptFilter ((ScriptFilterDefinition) -> (ModuleScript?, ModuleScript?))? -- If present, will be used instead of the default script parser return `commandScript`, `commandServerScript` arguments.
 
 	Registers all commands from within a container on both the server and client.
 	Module scripts which include `Server` in their name will not be sent to the client.
 ]=]
-function Registry:RegisterCommandsIn(container: Instance, filter: ((any) -> boolean)?, isDefault: boolean?, forceLegacy : boolean?)
+function Registry:RegisterCommandsIn(container: Instance, filter: ((any) -> boolean)?, isDefault: boolean?, scriptFilter : ((any) -> (ModuleScript?, ModuleScript?))?)
 	local skippedServerScripts = {}
 	local usedServerScripts = {}
-	local containerChildren = container:GetChildren()
-	if not forceLegacy then
-		const Server = container:FindFirstChild("Server")
-		const Client = container:FindFirstChild("Client")
-		if not Client or not Client:IsA("ModuleScript") then
-			if Server and Server:IsA("ModuleScript") then
-				const indexServer = table.find(containerChildren, Server)
-				if indexServer then
-					table.remove(containerChildren, indexServer)
-				end
-				skippedServerScripts[Server] = true
+	const scriptFilter = scriptFilter or function(context)
+		const commandScript = context.Script
+		if commandScript then
+			if not commandScript.Name:find("Server") then
+				return commandScript, context.Container:FindFirstChild(`{commandScript.Name}Server`)
+			else
+				return nil, commandScript
 			end
 		else
-			const indexServer = table.find(containerChildren, Server)
-			if indexServer then
-				table.remove(containerChildren, indexServer)
-			end
-			const indexClient = table.find(containerChildren, Client)
-			if indexClient then
-				table.remove(containerChildren, indexClient)
-			end
-			self:RegisterCommand(Client, Server, filter, isDefault)
+			return nil, nil
 		end
 	end
-	for _, commandScript in pairs(containerChildren) do
+	for _, commandScript in pairs(container:GetChildren()) do
 		if commandScript:IsA("ModuleScript") then
-			if not commandScript.Name:find("Server") then
-				const serverCommandScript = container:FindFirstChild(`{commandScript.Name}Server`)
+			const clientCommandScript, serverCommandScript = scriptFilter(table.freeze{
+				Script = commandScript, Container = container
+			})
+			if clientCommandScript then
 				if serverCommandScript then
 					usedServerScripts[serverCommandScript] = true
 				end
-
-				self:RegisterCommand(commandScript, serverCommandScript, filter, isDefault)
+				self:RegisterCommand(clientCommandScript, serverCommandScript, filter, isDefault)
 			else
-				skippedServerScripts[commandScript] = true
+				if serverCommandScript then
+					print("skipped")
+					skippedServerScripts[serverCommandScript] = true
+				end
 			end
 		else
-			self:RegisterCommandsIn(commandScript, filter, isDefault)
+			self:RegisterCommandsIn(commandScript, filter, isDefault, scriptFilter)
 		end
 	end
 
